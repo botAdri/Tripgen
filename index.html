@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Guide de Voyage — Générateur</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<style>
+:root {
+  --cream:#F6F2EC; --warm:#FDFAF6; --ink:#1A130E; --ink-light:#4A3728;
+  --accent:#C4562A; --accent-soft:#E8845A; --gold:#C9913A;
+  --border:rgba(196,86,42,.13);
+  --shadow-sm:0 2px 12px rgba(26,19,14,.07);
+  --shadow-md:0 4px 28px rgba(26,19,14,.11);
+  --shadow-lg:0 8px 48px rgba(26,19,14,.15);
+}
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box;}
+html,body{height:100%;font-family:'DM Sans',sans-serif;background:var(--cream);color:var(--ink);}
+.hidden{display:none !important;}
+
+/* ═══ ÉCRAN DE SAISIE ═══ */
+#inputScreen{
+  min-height:100vh; display:flex; align-items:center; justify-content:center; padding:24px;
+}
+.input-card{
+  background:var(--warm); border-radius:20px; box-shadow:var(--shadow-lg);
+  padding:40px; max-width:560px; width:100%;
+}
+.input-title{font-family:'Playfair Display',serif; font-size:28px; font-weight:700; margin-bottom:8px;}
+.input-title span{color:var(--accent);}
+.input-sub{color:var(--ink-light); font-size:14px; margin-bottom:24px; line-height:1.5;}
+#tripDescription{
+  width:100%; min-height:110px; border:1.5px solid var(--border); border-radius:12px;
+  padding:14px; font-family:inherit; font-size:14px; resize:vertical; background:white;
+}
+#tripDescription:focus{outline:none; border-color:var(--accent);}
+.examples{display:flex; flex-wrap:wrap; gap:6px; margin:12px 0 20px;}
+.example-chip{
+  font-size:12px; padding:6px 12px; border-radius:999px; border:1px solid var(--border);
+  background:white; cursor:pointer; color:var(--ink-light); transition:.15s;
+}
+.example-chip:hover{border-color:var(--accent); color:var(--accent);}
+#generateBtn{
+  width:100%; padding:14px; border:none; border-radius:12px;
+  background:linear-gradient(120deg, var(--accent), var(--gold)); color:white;
+  font-family:inherit; font-size:15px; font-weight:700; cursor:pointer; transition:transform .15s;
+}
+#generateBtn:hover{transform:translateY(-2px);}
+#generateBtn:disabled{opacity:.6; cursor:not-allowed; transform:none;}
+.error-box{
+  margin-top:14px; padding:12px 14px; border-radius:10px; background:#FBEAEA; color:#8C2F2F; font-size:13px;
+}
+
+/* ═══ APP (GUIDE) ═══ */
+#appScreen{ display:grid; grid-template-rows:auto 1fr; height:100vh; overflow:hidden; }
+.header{
+  background:var(--warm); border-bottom:2px solid var(--border); padding:14px 20px;
+  display:flex; align-items:center; gap:16px; flex-wrap:wrap;
+}
+.header-title{font-family:'Playfair Display',serif; font-size:clamp(16px,2.5vw,22px); font-weight:700;}
+.header-title span{color:var(--accent);}
+.header-right{margin-left:auto; display:flex; gap:8px; flex-wrap:wrap; align-items:center;}
+.stat-pill{font-size:11px; padding:5px 11px; border-radius:999px; background:var(--cream); border:1px solid var(--border);}
+.action-pill{
+  font-size:11px; padding:5px 11px; border-radius:999px; background:var(--cream); border:1px solid var(--border);
+  cursor:pointer; font-family:inherit;
+}
+.new-trip-btn{background:var(--accent); color:white; border:none;}
+
+.body{ display:grid; grid-template-columns:380px 1fr; overflow:hidden; }
+.sidebar{ border-right:1.5px solid var(--border); overflow:hidden; display:flex; flex-direction:column; }
+.city-tabs{ display:flex; overflow-x:auto; border-bottom:1.5px solid var(--border); flex-shrink:0; }
+.city-tab{
+  padding:12px 16px; border:none; background:none; cursor:pointer; font-family:inherit;
+  font-size:13px; font-weight:600; white-space:nowrap; border-bottom:2.5px solid transparent; display:flex; align-items:center; gap:6px;
+}
+.city-tab.active{ border-bottom-color: var(--accent); }
+.tab-num{ width:18px; height:18px; border-radius:50%; color:white; font-size:10px; display:flex; align-items:center; justify-content:center; }
+.activities-panel{ flex:1; overflow-y:auto; padding-bottom:20px; }
+.city-panel{ display:none; }
+.city-panel.active{ display:block; }
+.city-header{ padding:18px; color:white; }
+.city-name{ font-family:'Playfair Display',serif; font-size:22px; font-weight:700; }
+.city-dates{ font-size:12px; opacity:.9; margin-top:4px; }
+.city-desc{ padding:16px 18px; font-size:13px; line-height:1.6; color:var(--ink-light); font-style:italic; }
+.activities-list{ padding:0 18px; display:flex; flex-direction:column; gap:10px; }
+.activity-card{ display:flex; gap:10px; background:white; border:1px solid var(--border); border-radius:12px; padding:12px; }
+.activity-icon{ font-size:20px; }
+.activity-name{ font-weight:600; font-size:13px; margin-bottom:3px; }
+.activity-sub{ font-size:12px; color:var(--ink-light); line-height:1.5; margin-bottom:6px; }
+.activity-tag{ font-size:10px; padding:3px 9px; border-radius:999px; font-weight:700; display:inline-block; }
+.tag-free{ background:#E4F0E5; color:#2D6B3A; }
+.tag-must{ background:#FBEAD8; color:var(--accent); }
+.tag-paid{ background:#EFEFEF; color:#555; }
+.budget-bar{ margin:16px 18px 0; background:var(--cream); border-radius:12px; padding:12px 14px; }
+.budget-bar-title{ font-size:12px; font-weight:700; margin-bottom:8px; }
+.budget-item{ display:flex; justify-content:space-between; font-size:12px; padding:2px 0; }
+.budget-total{ font-weight:700; color:var(--accent); }
+
+.map-wrap{ position:relative; }
+#map{ width:100%; height:100%; }
+.map-legend{
+  position:absolute; bottom:14px; left:14px; background:rgba(253,250,246,.95);
+  border:1px solid var(--border); border-radius:10px; padding:10px 13px; font-size:11px; z-index:500; box-shadow:var(--shadow-sm);
+}
+.legend-row{ display:flex; align-items:center; gap:7px; padding:2px 0; }
+.legend-dot{ width:11px; height:11px; border-radius:50%; }
+.budget-fab{
+  position:absolute; top:14px; right:14px; z-index:800; padding:9px 16px; border:none; border-radius:999px;
+  background:linear-gradient(120deg, var(--accent), var(--gold)); color:white; font-family:inherit; font-size:12px;
+  font-weight:700; cursor:pointer; box-shadow:var(--shadow-md);
+}
+.map-pin{ width:36px; height:44px; display:flex; align-items:flex-start; justify-content:center; filter:drop-shadow(0 3px 6px rgba(0,0,0,.28)); }
+.map-pin-body{ width:36px; height:36px; border-radius:50% 50% 50% 0; transform:rotate(-45deg); display:flex; align-items:center; justify-content:center; border:2.5px solid rgba(255,255,255,.88); }
+.map-pin-number{ transform:rotate(45deg); font-size:13px; font-weight:700; color:white; }
+
+.budget-overlay{ position:fixed; inset:0; background:rgba(26,19,14,.55); z-index:2000; display:none; align-items:center; justify-content:center; padding:24px; }
+.budget-overlay.active{ display:flex; }
+.budget-modal{ background:var(--warm); width:100%; max-width:420px; max-height:80vh; overflow-y:auto; border-radius:16px; box-shadow:var(--shadow-lg); padding:20px; position:relative; }
+.budget-modal-close{ position:absolute; top:10px; right:10px; width:30px; height:30px; border-radius:50%; border:none; background:var(--cream); cursor:pointer; font-size:16px; }
+.budget-modal h3{ font-family:'Playfair Display',serif; margin-bottom:12px; }
+.budget-modal .row{ display:flex; justify-content:space-between; font-size:13px; padding:6px 0; border-bottom:1px solid var(--border); }
+.budget-modal .tip{ font-size:12px; color:var(--ink-light); font-style:italic; margin-top:12px; }
+
+@media (max-width:720px){
+  .body{ grid-template-columns:1fr; grid-template-rows:45vh auto; }
+  .sidebar{ border-right:none; border-top:1.5px solid var(--border); }
+  .header-right{ display:none; }
+}
+</style>
+</head>
+<body>
+
+<!-- ═══ ÉCRAN DE SAISIE ═══ -->
+<div id="inputScreen">
+  <div class="input-card">
+    <div class="input-title">Décrivez votre <span>voyage</span></div>
+    <div class="input-sub">En une phrase ou deux : destination, durée, style de voyage, saison... Un itinéraire complet (carte, étapes, activités, budget) sera généré automatiquement.</div>
+    <textarea id="tripDescription" placeholder="Ex. 10 jours en van dans le sud du Portugal, plutôt nature et plages, budget serré, en octobre."></textarea>
+    <div class="examples">
+      <div class="example-chip">2 semaines en Toscane en été, road trip</div>
+      <div class="example-chip">10 jours au Japon, Tokyo à Kyoto, culture et gastronomie</div>
+      <div class="example-chip">1 semaine en Écosse, randonnée et châteaux</div>
+    </div>
+    <button id="generateBtn">✨ Générer mon itinéraire</button>
+    <div id="errorBox" class="error-box hidden"></div>
+  </div>
+</div>
+
+<!-- ═══ APP (GUIDE GÉNÉRÉ) ═══ -->
+<div id="appScreen" class="hidden">
+  <header class="header">
+    <h1 class="header-title" id="tripTitle">Guide de <span>Voyage</span></h1>
+    <div class="header-right">
+      <button class="action-pill" id="icsExportBtn">📅 .ics</button>
+      <span class="stat-pill" id="statVilles">🗺️ — étapes</span>
+      <span class="stat-pill" id="statJours">📅 — jours</span>
+      <button class="action-pill new-trip-btn" id="newTripBtn">↺ Nouveau voyage</button>
+    </div>
+  </header>
+  <div class="body">
+    <aside class="sidebar">
+      <div class="city-tabs" id="cityTabs"></div>
+      <div class="activities-panel" id="activitiesPanel"></div>
+    </aside>
+    <div class="map-wrap">
+      <div id="map"></div>
+      <button class="budget-fab" id="budgetFab">💰 Budget du voyage</button>
+      <div class="map-legend">
+        <div id="legendTitle" style="font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:var(--accent);font-weight:700;margin-bottom:6px;">Étapes</div>
+        <div id="legendRows"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="budget-overlay" id="budgetOverlay">
+  <div class="budget-modal">
+    <button class="budget-modal-close" id="budgetClose">✕</button>
+    <div id="budgetModalBody"></div>
+  </div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
