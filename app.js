@@ -38,6 +38,15 @@ generateBtn.addEventListener("click", async () => {
     renderTrip(data);
     inputScreen.classList.add("hidden");
     appScreen.classList.remove("hidden");
+    // Le conteneur de la carte était caché (display:none) pendant que la carte
+    // s'initialisait : Leaflet a mal calculé sa taille et n'a chargé qu'une
+    // partie des tuiles. On force un recalcul maintenant qu'il est visible.
+    setTimeout(() => {
+      if (map) {
+        map.invalidateSize();
+        if (routeLine) map.fitBounds(routeLine.getBounds(), { padding: [40, 40] });
+      }
+    }, 50);
   } catch (err) {
     errorBox.textContent = "Impossible de générer l'itinéraire : " + err.message + ". Vérifiez que WORKER_URL est bien configuré dans app.js.";
     errorBox.classList.remove("hidden");
