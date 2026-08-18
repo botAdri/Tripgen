@@ -27,16 +27,11 @@ generateBtn.addEventListener("click", async () => {
   generateBtn.textContent = "⏳ Génération en cours…";
 
   try {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 45000);
-
     const res = await fetch(WORKER_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ description }),
-      signal: controller.signal,
     });
-    clearTimeout(timeoutId);
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || "Erreur inconnue");
 
@@ -53,10 +48,7 @@ generateBtn.addEventListener("click", async () => {
       }
     }, 50);
   } catch (err) {
-    const message = err.name === "AbortError"
-      ? "Le modèle a mis trop de temps à répondre (plus de 45 s). Réessayez, ou changez de modèle gratuit dans worker-openrouter.js s'il est temporairement saturé."
-      : "Impossible de générer l'itinéraire : " + err.message + ". Vérifiez que WORKER_URL est bien configuré dans app.js.";
-    errorBox.textContent = message;
+    errorBox.textContent = "Impossible de générer l'itinéraire : " + err.message + ". Vérifiez que WORKER_URL est bien configuré dans app.js.";
     errorBox.classList.remove("hidden");
   } finally {
     generateBtn.disabled = false;
