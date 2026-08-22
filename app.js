@@ -152,29 +152,6 @@ function renderTrip(data) {
       )
       .join("");
 
-    const stayEat = (stop.hebergement_exemple || stop.restaurant_exemple)
-      ? `
-      <div class="stay-eat">
-        ${stop.hebergement_exemple ? `
-        <div class="stay-eat-item">
-          <span class="stay-eat-icon">🏨</span>
-          <div>
-            <div class="stay-eat-name">${stop.hebergement_exemple.nom}</div>
-            <div class="stay-eat-sub">${stop.hebergement_exemple.type} · ${stop.hebergement_exemple.price}</div>
-          </div>
-        </div>` : ""}
-        ${stop.restaurant_exemple ? `
-        <div class="stay-eat-item">
-          <span class="stay-eat-icon">🍽️</span>
-          <div>
-            <div class="stay-eat-name">${stop.restaurant_exemple.nom}</div>
-            <div class="stay-eat-sub">${stop.restaurant_exemple.type} · ${stop.restaurant_exemple.price}</div>
-          </div>
-        </div>` : ""}
-        <div class="stay-eat-note">Exemples indicatifs, pas des adresses vérifiées</div>
-      </div>`
-      : "";
-
     const panel = document.createElement("div");
     panel.className = "city-panel" + (i === 0 ? " active" : "");
     panel.innerHTML = `
@@ -184,7 +161,6 @@ function renderTrip(data) {
       </div>
       <div class="city-desc">${stop.desc}</div>
       <div class="activities-list">${acts}</div>
-      ${stayEat}
       <div class="budget-bar">
         <div class="budget-bar-title">💰 Budget étape</div>
         <div class="budget-item"><span>Hébergement</span><span>${stop.budget.heberg}</span></div>
@@ -206,6 +182,37 @@ function renderTrip(data) {
   map.fitBounds(routeLine.getBounds(), { padding: [40, 40] });
   renderBudgetModal(data);
   renderTripSummary(data);
+  renderStayEat(stops[0]);
+}
+
+function renderStayEat(stop) {
+  const panel = document.getElementById("stayEatPanel");
+  if (!stop || (!stop.hebergement_exemple && !stop.restaurant_exemple)) {
+    panel.innerHTML = "";
+    return;
+  }
+  panel.innerHTML = `
+    <div class="stay-eat-title">🏨🍽️ À ${stop.name}</div>
+    <div class="stay-eat-row">
+      ${stop.hebergement_exemple ? `
+      <div class="stay-eat-item">
+        <span class="stay-eat-icon">🏨</span>
+        <div>
+          <div class="stay-eat-name">${stop.hebergement_exemple.nom}</div>
+          <div class="stay-eat-sub">${stop.hebergement_exemple.type} · ${stop.hebergement_exemple.price}</div>
+        </div>
+      </div>` : ""}
+      ${stop.restaurant_exemple ? `
+      <div class="stay-eat-item">
+        <span class="stay-eat-icon">🍽️</span>
+        <div>
+          <div class="stay-eat-name">${stop.restaurant_exemple.nom}</div>
+          <div class="stay-eat-sub">${stop.restaurant_exemple.type} · ${stop.restaurant_exemple.price}</div>
+        </div>
+      </div>` : ""}
+    </div>
+    <div class="stay-eat-note">Exemples indicatifs, pas des adresses vérifiées</div>
+  `;
 }
 
 function renderTripSummary(data) {
@@ -232,6 +239,7 @@ function selectStop(idx) {
   });
   document.querySelectorAll(".city-panel").forEach((p, i) => p.classList.toggle("active", i === idx));
   map.flyTo([stops[idx].lat, stops[idx].lng], 10, { duration: 0.8 });
+  renderStayEat(stops[idx]);
 }
 
 function parseNumbers(str) {
