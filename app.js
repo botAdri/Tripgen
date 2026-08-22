@@ -8,9 +8,17 @@ const appScreen = document.getElementById("appScreen");
 const tripDescription = document.getElementById("tripDescription");
 const generateBtn = document.getElementById("generateBtn");
 const errorBox = document.getElementById("errorBox");
+const charCounter = document.getElementById("charCounter");
+
+tripDescription.addEventListener("input", () => {
+  charCounter.textContent = `${tripDescription.value.length} / 220`;
+});
 
 document.querySelectorAll(".example-chip").forEach((chip) => {
-  chip.addEventListener("click", () => { tripDescription.value = chip.textContent; });
+  chip.addEventListener("click", () => {
+    tripDescription.value = chip.textContent;
+    charCounter.textContent = `${tripDescription.value.length} / 220`;
+  });
 });
 
 document.getElementById("newTripBtn").addEventListener("click", () => {
@@ -27,11 +35,19 @@ generateBtn.addEventListener("click", async () => {
   generateBtn.textContent = "⏳ Génération en cours…";
 
   try {
+    const controller = new AbortController();
+    // Le Worker peut essayer jusqu'à 3 modèles gratuits l'un après l'autre :
+    // on laisse une marge large, mais on affiche un message clair plutôt que
+    // de laisser une erreur réseau brute s'afficher indéfiniment.
+    const timeoutId = setTimeout(() => controller.abort(), 75000);
+
     const res = await fetch(WORKER_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ description }),
+      signal: controller.signal,
     });
+    clearTimeout(timeoutId);
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || "Erreur inconnue");
 
@@ -48,7 +64,15 @@ generateBtn.addEventListener("click", async () => {
       }
     }, 50);
   } catch (err) {
-    errorBox.textContent = "Impossible de générer l'itinéraire : " + err.message + ". Vérifiez que WORKER_URL est bien configuré dans app.js.";
+    let message;
+    if (err.name === "AbortError") {
+      message = "La génération a pris trop de temps (plus de 75 s). Essayez une description plus courte, ou réessayez dans un instant.";
+    } else if (err.message === "Failed to fetch" || err.message.includes("NetworkError")) {
+      message = "Connexion au générateur impossible. Si vous êtes sur Firefox, vérifiez la protection anti-pistage / vos extensions (bloqueur de pub, VPN, antivirus) pour ce site.";
+    } else {
+      message = "Impossible de générer l'itinéraire : " + err.message + ". Vérifiez que WORKER_URL est bien configuré dans app.js.";
+    }
+    errorBox.textContent = message;
     errorBox.classList.remove("hidden");
   } finally {
     generateBtn.disabled = false;
