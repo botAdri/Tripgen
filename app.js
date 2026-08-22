@@ -181,6 +181,24 @@ function renderTrip(data) {
 
   map.fitBounds(routeLine.getBounds(), { padding: [40, 40] });
   renderBudgetModal(data);
+  renderTripSummary(data);
+}
+
+function renderTripSummary(data) {
+  const perStopTotals = stops.map((s) => parseNumbers(s.budget.total)[0] || 0);
+  const stopsSum = perStopTotals.reduce((a, b) => a + b, 0);
+  const bs = data.budget_summary || {};
+  const currency = data.currency_symbol || "€";
+
+  document.getElementById("summaryGrid").innerHTML = `
+    <div class="trip-summary-item"><span class="label">Pays</span><span class="value">${data.country || "—"}</span></div>
+    <div class="trip-summary-item"><span class="label">Durée</span><span class="value">${data.total_days || "—"} jours</span></div>
+    <div class="trip-summary-item"><span class="label">Étapes</span><span class="value">${stops.length}</span></div>
+    <div class="trip-summary-item"><span class="label">Budget étapes</span><span class="value">~${Math.round(stopsSum)} ${currency}</span></div>
+    ${bs.flights ? `<div class="trip-summary-item"><span class="label">✈️ Vols A/R</span><span class="value">${bs.flights}</span></div>` : ""}
+    ${bs.transport_local ? `<div class="trip-summary-item"><span class="label">🚗 Transport local</span><span class="value">${bs.transport_local}</span></div>` : ""}
+  `;
+  document.getElementById("summaryTip").innerHTML = bs.tip ? `💡 ${bs.tip}` : "";
 }
 
 function selectStop(idx) {
