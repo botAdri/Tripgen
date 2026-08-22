@@ -137,7 +137,8 @@ html,body{height:100%;font-family:'DM Sans',sans-serif;background:var(--cream);c
   <div class="input-card">
     <div class="input-title">Décrivez votre <span>voyage</span></div>
     <div class="input-sub">En une phrase ou deux : destination, durée, style de voyage, saison... Un itinéraire complet (carte, étapes, activités, budget) sera généré automatiquement.</div>
-    <textarea id="tripDescription" placeholder="Ex. 10 jours en van dans le sud du Portugal, plutôt nature et plages, budget serré, en octobre."></textarea>
+    <textarea id="tripDescription" maxlength="220" placeholder="Ex. 10 jours en van dans le sud du Portugal, plutôt nature et plages, budget serré, en octobre."></textarea>
+    <div id="charCounter" style="text-align:right; font-size:11px; color:var(--ink-light); margin-top:4px;">0 / 220</div>
     <div class="examples">
       <div class="example-chip">2 semaines en Toscane en été, road trip</div>
       <div class="example-chip">10 jours au Japon, Tokyo à Kyoto, culture et gastronomie</div>
