@@ -24,6 +24,7 @@ document.querySelectorAll(".example-chip").forEach((chip) => {
 document.getElementById("newTripBtn").addEventListener("click", () => {
   appScreen.classList.add("hidden");
   inputScreen.classList.remove("hidden");
+  history.replaceState(null, "", location.pathname);
 });
 
 generateBtn.addEventListener("click", async () => {
@@ -54,6 +55,12 @@ generateBtn.addEventListener("click", async () => {
     renderTrip(data);
     inputScreen.classList.add("hidden");
     appScreen.classList.remove("hidden");
+    // On encode l'itinéraire généré dans l'URL, pour que le lien de la page
+    // soit réellement partageable (sans ça, la personne qui l'ouvre retomberait
+    // sur l'écran de saisie vide plutôt que sur ce voyage précis).
+    try {
+      history.replaceState(null, "", "?trip=" + encodeURIComponent(JSON.stringify(data)));
+    } catch (e) { /* URL trop longue ou navigateur restrictif : tant pis, pas bloquant */ }
     // Le conteneur de la carte était caché (display:none) pendant que la carte
     // s'initialisait : Leaflet a mal calculé sa taille et n'a chargé qu'une
     // partie des tuiles. On force un recalcul maintenant qu'il est visible.
@@ -227,3 +234,51 @@ document.getElementById("icsExportBtn").addEventListener("click", () => {
   a.download = "itineraire.ics";
   a.click();
 });
+
+const shareBtn = document.getElementById("shareBtn");
+shareBtn.addEventListener("click", async () => {
+  if (!tripData) return;
+  const shareData = {
+    title: tripData.title || "Guide de voyage",
+    text: `Découvrez mon itinéraire : ${tripData.title || "voyage"}`,
+    url: location.href,
+  };
+  if (navigator.share) {
+    try {
+      await navigator.share(shareData);
+    } catch (e) { /* l'utilisateur a annulé le partage, rien à faire */ }
+    return;
+  }
+  // Pas de Web Share API disponible (ex. certains navigateurs desktop) :
+  // on copie simplement le lien dans le presse-papiers.
+  try {
+    await navigator.clipboard.writeText(location.href);
+    const original = shareBtn.textContent;
+    shareBtn.textContent = "✓ Lien copié !";
+    setTimeout(() => { shareBtn.textContent = original; }, 2000);
+  } catch (e) {
+    alert("Copiez le lien depuis la barre d'adresse pour le partager : " + location.href);
+  }
+});
+
+// Si la page est ouverte via un lien partagé, l'itinéraire est encodé dans l'URL
+// (paramètre ?trip=...) : on l'affiche directement au lieu de l'écran de saisie.
+(function loadSharedTripFromURL() {
+  const params = new URLSearchParams(location.search);
+  const encoded = params.get("trip");
+  if (!encoded) return;
+  try {
+    const data = JSON.parse(decodeURIComponent(encoded));
+    renderTrip(data);
+    inputScreen.classList.add("hidden");
+    appScreen.classList.remove("hidden");
+    setTimeout(() => {
+      if (map) {
+        map.invalidateSize();
+        if (routeLine) map.fitBounds(routeLine.getBounds(), { padding: [40, 40] });
+      }
+    }, 50);
+  } catch (e) {
+    // Lien corrompu ou tronqué : on reste simplement sur l'écran de saisie.
+  }
+})();
