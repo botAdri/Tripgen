@@ -1,6 +1,10 @@
 // ⚠️ À renseigner après déploiement du Worker (voir worker.js) :
 const WORKER_URL = "https://tripgen.vyr9f5wysn.workers.dev";
 
+// Clé CARTO Basemaps (tuiles de la carte). Clé de tuiles, visible par nature côté navigateur :
+// elle doit être restreinte au domaine botadri.github.io dans ton compte CARTO.
+const CARTO_KEY = "cb1_3p1q_1_7b57fbc2cc6c1f213af532ba";
+
 const COLOR_PALETTE = ["#1E3A5F", "#C4562A", "#2D6B3A", "#7A4F2A", "#8B3A6A", "#4A7FA5", "#3D6B8A", "#1F5C7A", "#B5651D", "#4E6B3E"];
 
 const inputScreen = document.getElementById("inputScreen");
@@ -50,7 +54,11 @@ generateBtn.addEventListener("click", async () => {
     });
     clearTimeout(timeoutId);
     const data = await res.json();
-    if (!res.ok) throw new Error(data.error || "Erreur inconnue");
+    if (!res.ok) {
+      const e = new Error(data.error || "Erreur inconnue");
+      e.detail = data.detail;
+      throw e;
+    }
 
     renderTrip(data);
     inputScreen.classList.add("hidden");
@@ -77,7 +85,7 @@ generateBtn.addEventListener("click", async () => {
     } else if (err.message === "Failed to fetch" || err.message.includes("NetworkError")) {
       message = "Connexion au générateur impossible. Si vous êtes sur Firefox, vérifiez la protection anti-pistage / vos extensions (bloqueur de pub, VPN, antivirus) pour ce site.";
     } else {
-      message = "Impossible de générer l'itinéraire : " + err.message + ". Vérifiez que WORKER_URL est bien configuré dans app.js.";
+      message = "Impossible de générer l'itinéraire : " + err.message + (err.detail ? " [" + err.detail + "]" : "");
     }
     errorBox.textContent = message;
     errorBox.classList.remove("hidden");
@@ -91,9 +99,15 @@ generateBtn.addEventListener("click", async () => {
 let map, stops = [], mapMarkers = [], routeLine = null, tripData = null;
 
 function getTagHTML(tag, price) {
-  if (tag === "free") return `<span class="activity-tag tag-free">✓ ${price}</span>`;
-  if (tag === "must") return `<span class="activity-tag tag-must">⭐ Incontournable · ${price}</span>`;
-  return `<span class="activity-tag tag-paid">💳 ${price}</span>`;
+  const p = price && price !== "undefined" ? price : "";
+  if (tag === "free") return `<span class="activity-tag tag-free">✓ ${p || "Gratuit"}</span>`;
+  if (tag === "must") return `<span class="activity-tag tag-must">⭐ Incontournable${p ? " · " + p : ""}</span>`;
+  return p ? `<span class="activity-tag tag-paid">💳 ${p}</span>` : "";
+}
+
+// Assemble "type · prix" sans afficher "undefined" si un champ manque.
+function joinInfo(...parts) {
+  return parts.filter((x) => x && x !== "undefined").join(" · ");
 }
 
 function renderTrip(data) {
@@ -108,7 +122,7 @@ function renderTrip(data) {
 
   if (!map) {
     map = L.map("map", { zoomControl: true, scrollWheelZoom: true });
-    L.tileLayer("https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png", {
+    L.tileLayer("https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png?key=" + CARTO_KEY, {
       attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> © <a href="https://carto.com/attributions">CARTO</a>',
       subdomains: "abcd", maxZoom: 19,
     }).addTo(map);
@@ -138,7 +152,7 @@ function renderTrip(data) {
     tab.addEventListener("click", () => selectStop(i));
     tabsEl.appendChild(tab);
 
-    const acts = stop.activites
+    const acts = (stop.activites || [])
       .map(
         (a) => `
       <div class="activity-card">
@@ -199,7 +213,7 @@ function renderStayEat(stop) {
         <span class="stay-eat-icon">🏨</span>
         <div>
           <div class="stay-eat-name">${stop.hebergement_exemple.nom}</div>
-          <div class="stay-eat-sub">${stop.hebergement_exemple.type} · ${stop.hebergement_exemple.price}</div>
+          <div class="stay-eat-sub">${joinInfo(stop.hebergement_exemple.type, stop.hebergement_exemple.price)}</div>
         </div>
       </div>` : ""}
       ${stop.restaurant_exemple ? `
@@ -207,7 +221,7 @@ function renderStayEat(stop) {
         <span class="stay-eat-icon">🍽️</span>
         <div>
           <div class="stay-eat-name">${stop.restaurant_exemple.nom}</div>
-          <div class="stay-eat-sub">${stop.restaurant_exemple.type} · ${stop.restaurant_exemple.price}</div>
+          <div class="stay-eat-sub">${joinInfo(stop.restaurant_exemple.type, stop.restaurant_exemple.price)}</div>
         </div>
       </div>` : ""}
     </div>
